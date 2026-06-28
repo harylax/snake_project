@@ -1,4 +1,4 @@
-from mlx import Mlx
+from mlx import Mlx  # type: ignore
 import time
 import random
 
@@ -24,40 +24,61 @@ def draw_cell(pos: tuple[int, int], color: int) -> None:
 
 class Snake:
     def __init__(self) -> None:
-        self.position: tuple[int, int] = (width // 2, height // 2)
-        self.apple_pos: tuple[int, int] = self.position
+        self.start: tuple[int, int] = (width // 2, height // 2)
+        self.body: list[tuple[int, int]] = [self.start]
+        self.apple_pos: tuple[int, int] = self.start
         self.running: bool = True
         self.direction: tuple[int, int] = (1, 0)
         self.score: int = 0
+        self.random_apple_position()
 
     def draw_snake(self) -> None:
-        draw_cell(self.position, 0xFF00FF55)
+        for segment in self.body:
+            draw_cell(segment, 0xFF00FF55)
 
     def random_apple_position(self) -> None:
-        while self.apple_pos == self.position:
-            x, y = random.randint(0, width - 1), random.randint(0, height - 1)
-            self.apple_pos = (x, y)
-            if self.apple_pos != self.position:
-                self.score += 1
+        while True:
+            pos = (random.randint(0, width - 1), random.randint(0, height - 1))
+            if pos not in self.body:
+                self.apple_pos = pos
+                break
 
     def draw_apple(self) -> None:
-        self.random_apple_position()
         draw_cell(self.apple_pos, 0xFFFF2200)
 
     def animate(self, _) -> None:
         if not self.running:
-            mlx.mlx_string_put(mlx_ptr, win_ptr, 360, 290, 0xFFFFFFFF, "GAME OVER")
+            mlx.mlx_string_put(
+                mlx_ptr, win_ptr, 360, 290, 0xFFFFFFFF, "GAME OVER"
+                )
             return
         mlx.mlx_clear_window(mlx_ptr, win_ptr)
-        mlx.mlx_string_put(mlx_ptr, win_ptr, 365, 10, 0xFFFFFFFF, f"SCORE: {self.score}")
-        self.draw_snake()
-        x, y = self.position
+        mlx.mlx_string_put(
+            mlx_ptr, win_ptr, 365, 10, 0xFFFFFFFF, f"SCORE: {self.score}"
+            )
+
+        x, y = self.body[0]
         dx, dy = self.direction
         nx, ny = x + dx, y + dy
+
         if not (0 <= nx < width and 0 <= ny < height):
             self.running = False
+            return
+
+        if (nx, ny) in self.body:
+            self.running = False
+            return
+
+        self.body.insert(0, (nx, ny))
+
+        if (nx, ny) == self.apple_pos:
+            self.score += 1
+            self.random_apple_position()
+        else:
+            self.body.pop()
+
+        self.draw_snake()
         self.draw_apple()
-        self.position = nx, ny
         time.sleep(0.1)
 
     def key_hook(self, keycode: int, _) -> None:
@@ -79,7 +100,10 @@ class Snake:
                 return
             mlx.mlx_loop_hook(mlx_ptr, None, None)
             mlx.mlx_clear_window(mlx_ptr, win_ptr)
-            self.position = width // 2, height // 2
+            self.start = width // 2, height // 2
+            self.body = [self.start]
+            self.score = 0
+            self.random_apple_position()
             self.running = True
             mlx.mlx_loop_hook(mlx_ptr, self.animate, None)
 
